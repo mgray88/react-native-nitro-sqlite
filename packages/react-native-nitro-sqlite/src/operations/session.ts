@@ -8,8 +8,9 @@ import type {
   SQLiteQueryParams,
   QueryResultRow,
   QueryResult,
+  SQLiteValue,
 } from '../types'
-import { execute, executeAsync } from './execute'
+import { execute, executeAsync, executeRaw, executeRawAsync } from './execute'
 import { executeBatch, executeBatchAsync } from './executeBatch'
 import NitroSQLiteError from '../NitroSQLiteError'
 import { closeDatabaseQueue, openDatabaseQueue } from '../DatabaseQueue'
@@ -47,6 +48,12 @@ export function open(
       query: string,
       params?: SQLiteQueryParams,
     ): Promise<QueryResult<Row>> => executeAsync(options.name, query, params),
+    executeRaw: (query: string, params?: SQLiteQueryParams): SQLiteValue[][] =>
+      executeRaw(options.name, query, params),
+    executeRawAsync: (
+      query: string,
+      params?: SQLiteQueryParams,
+    ): Promise<SQLiteValue[][]> => executeRawAsync(options.name, query, params),
     executeBatch: (commands: BatchQueryCommand[]) =>
       executeBatch(options.name, commands),
     executeBatchAsync: (commands: BatchQueryCommand[]) =>

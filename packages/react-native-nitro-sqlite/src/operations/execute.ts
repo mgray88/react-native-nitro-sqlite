@@ -1,5 +1,10 @@
 import { HybridNitroSQLite } from '../nitro'
-import type { QueryResult, QueryResultRow, SQLiteQueryParams } from '../types'
+import type {
+  QueryResult,
+  QueryResultRow,
+  SQLiteQueryParams,
+  SQLiteValue,
+} from '../types'
 import NitroSQLiteError from '../NitroSQLiteError'
 import type { NitroSQLiteQueryResult } from '../specs/NitroSQLiteQueryResult.nitro'
 
@@ -28,6 +33,30 @@ export async function executeAsync<Row extends QueryResultRow = never>(
       params,
     )
     return buildJSQueryResult<Row>(nativeResult)
+  } catch (error) {
+    throw NitroSQLiteError.fromError(error)
+  }
+}
+
+export function executeRaw(
+  dbName: string,
+  query: string,
+  params?: SQLiteQueryParams,
+): SQLiteValue[][] {
+  try {
+    return HybridNitroSQLite.executeRaw(dbName, query, params)
+  } catch (error) {
+    throw NitroSQLiteError.fromError(error)
+  }
+}
+
+export async function executeRawAsync(
+  dbName: string,
+  query: string,
+  params?: SQLiteQueryParams,
+): Promise<SQLiteValue[][]> {
+  try {
+    return await HybridNitroSQLite.executeRawAsync(dbName, query, params)
   } catch (error) {
     throw NitroSQLiteError.fromError(error)
   }

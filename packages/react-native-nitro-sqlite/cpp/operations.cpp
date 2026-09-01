@@ -179,6 +179,30 @@ namespace {
     return statement;
   }
 
+  SQLiteValue getColumnValue(sqlite3_stmt* statement, int columnIndex) {
+    switch (sqlite3_column_type(statement, columnIndex)) {
+      case SQLITE_INTEGER:
+      case SQLITE_FLOAT:
+        return sqlite3_column_double(statement, columnIndex);
+      case SQLITE_TEXT: {
+        auto columnValue = reinterpret_cast<const char*>(sqlite3_column_text(statement, columnIndex));
+        return std::string(columnValue);
+      }
+      case SQLITE_BLOB: {
+        int blobSize = sqlite3_column_bytes(statement, columnIndex);
+        const void* blob = sqlite3_column_blob(statement, columnIndex);
+        if (blobSize > 0) {
+          const auto* blobData = reinterpret_cast<const uint8_t*>(blob);
+          return ArrayBuffer::copy(blobData, static_cast<size_t>(blobSize));
+        }
+        return ArrayBuffer::allocate(0);
+      }
+      case SQLITE_NULL:
+      default:
+        return NullType::null;
+    }
+  }
+
   template <typename OnRow>
   void consumeStatement(sqlite3* db, sqlite3_stmt* statement, OnRow&& onRow) {
     while (true) {
@@ -210,35 +234,8 @@ std::shared_ptr<HybridNitroSQLiteQueryResult> sqliteExecute(const std::string& d
     int count = sqlite3_column_count(currentStatement);
 
     for (int i = 0; i < count; i++) {
-      int columnType = sqlite3_column_type(currentStatement, i);
       std::string columnName = sqlite3_column_name(currentStatement, i);
-
-      switch (columnType) {
-        case SQLITE_INTEGER:
-        case SQLITE_FLOAT:
-          row[columnName] = sqlite3_column_double(currentStatement, i);
-          break;
-        case SQLITE_TEXT: {
-          auto columnValue = reinterpret_cast<const char*>(sqlite3_column_text(currentStatement, i));
-          row[columnName] = columnValue;
-          break;
-        }
-        case SQLITE_BLOB: {
-          int blobSize = sqlite3_column_bytes(currentStatement, i);
-          const void* blob = sqlite3_column_blob(currentStatement, i);
-          if (blobSize > 0) {
-            const auto* blobData = reinterpret_cast<const uint8_t*>(blob);
-            row[columnName] = ArrayBuffer::copy(blobData, static_cast<size_t>(blobSize));
-          } else {
-            row[columnName] = ArrayBuffer::allocate(0);
-          }
-          break;
-        }
-        case SQLITE_NULL:
-        default:
-          row[columnName] = NullType::null;
-          break;
-      }
+      row[columnName] = getColumnValue(currentStatement, i);
     }
 
     results.push_back(std::move(row));
@@ -261,6 +258,27 @@ std::shared_ptr<HybridNitroSQLiteQueryResult> sqliteExecute(const std::string& d
   long long latestInsertRowId = sqlite3_last_insert_rowid(db);
   return std::make_shared<HybridNitroSQLiteQueryResult>(std::move(results), static_cast<double>(latestInsertRowId), rowsAffected,
                                                         std::move(metadata));
+}
+
+SQLiteRawQueryResults sqliteExecuteRaw(const std::string& dbName, const std::string& query,
+                                       const std::optional<SQLiteQueryParams>& params) {
+  auto db = getOpenDatabase(dbName);
+  auto statement = prepareStatement(db, query, params);
+  SQLiteRawQueryResults results;
+
+  consumeStatement(db, statement.get(), [&](sqlite3_stmt* currentStatement) {
+    const int count = sqlite3_column_count(currentStatement);
+    SQLiteRawQueryResultRow row;
+    row.reserve(static_cast<size_t>(count));
+
+    for (int i = 0; i < count; i++) {
+      row.push_back(getColumnValue(currentStatement, i));
+    }
+
+    results.push_back(std::move(row));
+  });
+
+  return results;
 }
 
 SQLiteOperationResult sqliteExecuteCommand(const std::string& dbName, const std::string& query,

@@ -19,6 +19,9 @@ void sqliteDetachDb(const std::string& mainDBName, const std::string& alias);
 std::shared_ptr<HybridNitroSQLiteQueryResult> sqliteExecute(const std::string& dbName, const std::string& query,
                                                             const std::optional<SQLiteQueryParams>& params);
 
+SQLiteRawQueryResults sqliteExecuteRaw(const std::string& dbName, const std::string& query,
+                                       const std::optional<SQLiteQueryParams>& params);
+
 SQLiteOperationResult sqliteExecuteCommand(const std::string& dbName, const std::string& query,
                                            const std::optional<SQLiteQueryParams>& params = std::nullopt);
 

@@ -14,6 +14,8 @@ using SQLiteValue = std::variant<nitro::NullType, bool, std::shared_ptr<ArrayBuf
 using SQLiteQueryParams = std::vector<SQLiteValue>;
 using SQLiteQueryResultRow = std::unordered_map<std::string, SQLiteValue>;
 using SQLiteQueryResults = std::vector<SQLiteQueryResultRow>;
+using SQLiteRawQueryResultRow = std::vector<SQLiteValue>;
+using SQLiteRawQueryResults = std::vector<SQLiteRawQueryResultRow>;
 using SQLiteQueryTableMetadata = std::unordered_map<std::string, NitroSQLiteQueryColumnMetadata>;
 
 struct SQLiteOperationResult {

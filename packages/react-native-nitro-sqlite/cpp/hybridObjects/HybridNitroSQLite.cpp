@@ -109,6 +109,20 @@ HybridNitroSQLite::executeAsync(const std::string& dbName, const std::string& qu
       });
 };
 
+SQLiteRawQueryResults HybridNitroSQLite::executeRaw(const std::string& dbName, const std::string& query,
+                                                    const std::optional<SQLiteQueryParams>& params) {
+  return sqliteExecuteRaw(dbName, query, params);
+};
+
+std::shared_ptr<Promise<SQLiteRawQueryResults>> HybridNitroSQLite::executeRawAsync(
+    const std::string& dbName, const std::string& query, const std::optional<SQLiteQueryParams>& params) {
+  const auto copiedParams = copyArrayBufferParamsForBackground(params);
+
+  return Promise<SQLiteRawQueryResults>::async([=, this]() -> SQLiteRawQueryResults {
+    return sqliteExecuteRaw(dbName, query, copiedParams);
+  });
+};
+
 BatchQueryResult HybridNitroSQLite::executeBatch(const std::string& dbName, const std::vector<BatchQueryCommand>& batchParams) {
   const auto commands = batchParamsToCommands(batchParams);
 

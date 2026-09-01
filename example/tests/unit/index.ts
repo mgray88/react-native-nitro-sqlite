@@ -1,6 +1,7 @@
 import { beforeEach, describe } from '../TestApi'
 import { setupTestDb } from './common'
 import registerExecuteUnitTests from './specs/operations/execute.spec'
+import registerExecuteRawUnitTests from './specs/operations/executeRaw.spec'
 import registerTransactionUnitTests from './specs/operations/transaction.spec'
 import registerExecuteBatchUnitTests from './specs/operations/executeBatch.spec'
 import registerTypeORMUnitTestsSpecs from './specs/typeorm.spec'
@@ -12,6 +13,7 @@ export function registerUnitTests() {
 
   describe('Operations', () => {
     registerExecuteUnitTests()
+    registerExecuteRawUnitTests()
     registerTransactionUnitTests()
     registerExecuteBatchUnitTests()
   })

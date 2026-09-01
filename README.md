@@ -44,6 +44,8 @@ npm install react-native-nitro-sqlite react-native-nitro-modules
 npx pod-install
 ```
 
+Native API additions require rebuilding the iOS and Android application. Do not call a newly added native method from an OTA JavaScript update running against an older binary.
+
 ---
 
 # API overview
@@ -60,7 +62,8 @@ const db = open({ name: 'myDb.sqlite' })
 
 | Method | Sync | Async | Description |
 |--------|------|-------|-------------|
-| **Execute** | `db.execute(query, params?)` | `db.executeAsync(query, params?)` | Run a single SQL statement. |
+| **Execute** | `db.execute(query, params?)` | `db.executeAsync(query, params?)` | Run a single SQL statement and return keyed rows. |
+| **Raw execute** | `db.executeRaw(query, params?)` | `db.executeRawAsync(query, params?)` | Run a single SQL statement and return positional rows. |
 | **Batch** | `db.executeBatch(commands)` | `db.executeBatchAsync(commands)` | Run multiple statements in one transaction. |
 | **Load file** | `db.loadFile(path)` | `db.loadFileAsync(path)` | Execute SQL from a file. |
 | **Transaction** | — | `db.transaction(async (tx) => { ... })` | Run multiple statements in a transaction (async only). |
@@ -71,8 +74,8 @@ const db = open({ name: 'myDb.sqlite' })
 
 # Sync vs async
 
-- **Sync** (`execute`, `executeBatch`, `loadFile`): Run on the JS thread. Use for small, fast work; heavy work can block the UI.
-- **Async** (`executeAsync`, `executeBatchAsync`, `loadFileAsync`, `transaction`): Run off the JS thread. Prefer these for larger or many queries to keep the app responsive.
+- **Sync** (`execute`, `executeRaw`, `executeBatch`, `loadFile`): Run on the JS thread. Use for small, fast work; heavy work can block the UI.
+- **Async** (`executeAsync`, `executeRawAsync`, `executeBatchAsync`, `loadFileAsync`, `transaction`): Run off the JS thread. Prefer these for larger or many queries to keep the app responsive.
 
 ---
 
@@ -100,6 +103,20 @@ const users = db.execute<{ id: number; name: string }>(
   'SELECT id, name FROM users',
 ).rows._array
 ```
+
+### Positional results
+
+Use `executeRaw` when column positions matter, such as when a query has duplicate labels. It returns `SQLiteValue[][]` in SQLite row and column order, so no value is lost:
+
+```typescript
+const rows = db.executeRaw('SELECT users.id, posts.id FROM users JOIN posts ON posts.user_id = users.id')
+// [[userId, postId], ...]
+
+const asyncRows = await db.executeRawAsync('SELECT 1 AS id, 2 AS id')
+// [[1, 2]]
+```
+
+`execute` and `executeAsync` remain keyed by column label. Their `results` and `metadata` objects cannot represent duplicate labels; use the raw methods for those queries. Raw methods return `[]` for statements with no result rows and accept the same parameters and value types as `execute`.
 
 ## Transactions (async only)
 
@@ -191,7 +208,7 @@ db.delete()
 
 # Errors
 
-The JavaScript helpers—including `open`, `execute`, `executeAsync`, batch methods, transactions, and `close`—normalize database failures to `NitroSQLiteError`. Catch this class when you need to distinguish database failures from errors thrown by your application.
+The JavaScript helpers—including `open`, `execute`, `executeAsync`, `executeRaw`, `executeRawAsync`, batch methods, transactions, and `close`—normalize database failures to `NitroSQLiteError`. Catch this class when you need to distinguish database failures from errors thrown by your application.
 
 ```ts
 import { NitroSQLiteError } from 'react-native-nitro-sqlite'
@@ -351,7 +368,12 @@ import type {
 } from 'react-native-nitro-sqlite'
 ```
 
-`open()` is the recommended API. `NitroSQLite` exposes the underlying database-name-based methods for advanced integrations; prefer the connection returned by `open()` because it binds the database name and adds the JavaScript transaction and result helpers.
+`open()` is the recommended API. `NitroSQLite` exposes the underlying database-name-based methods—including `executeRaw` and `executeRawAsync`—for advanced integrations; prefer the connection returned by `open()` because it binds the database name and adds the JavaScript transaction and result helpers. `NitroSQLite.native` exposes the generated native methods, including `executeRaw` and `executeRawAsync` without JavaScript error normalization. Implementations of the exported `NitroSQLiteConnection` interface, such as structural mocks or wrappers, must provide both raw methods.
+
+```typescript
+const rows = NitroSQLite.executeRaw('myDb.sqlite', 'SELECT 1, 2')
+const nativeRows = NitroSQLite.native.executeRaw('myDb.sqlite', 'SELECT 1, 2')
+```
 
 ---
 

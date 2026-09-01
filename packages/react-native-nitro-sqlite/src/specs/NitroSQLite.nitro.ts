@@ -4,6 +4,7 @@ import type {
   BatchQueryResult,
   FileLoadResult,
   SQLiteQueryParams,
+  SQLiteValue,
 } from '../types'
 import type { NitroSQLiteQueryResult } from './NitroSQLiteQueryResult.nitro'
 
@@ -32,6 +33,16 @@ export interface NitroSQLite
     query: string,
     params?: SQLiteQueryParams,
   ): Promise<NitroSQLiteQueryResult>
+  executeRaw(
+    dbName: string,
+    query: string,
+    params?: SQLiteQueryParams,
+  ): SQLiteValue[][]
+  executeRawAsync(
+    dbName: string,
+    query: string,
+    params?: SQLiteQueryParams,
+  ): Promise<SQLiteValue[][]>
   executeBatch(dbName: string, commands: BatchQueryCommand[]): BatchQueryResult
   executeBatchAsync(
     dbName: string,

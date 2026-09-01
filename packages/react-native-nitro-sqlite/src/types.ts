@@ -15,6 +15,11 @@ export interface NitroSQLiteConnection {
   ) => Promise<Result>
   execute: ExecuteQuery
   executeAsync: ExecuteAsyncQuery
+  executeRaw(query: string, params?: SQLiteQueryParams): SQLiteValue[][]
+  executeRawAsync(
+    query: string,
+    params?: SQLiteQueryParams,
+  ): Promise<SQLiteValue[][]>
   executeBatch(commands: BatchQueryCommand[]): BatchQueryResult
   executeBatchAsync(commands: BatchQueryCommand[]): Promise<BatchQueryResult>
   loadFile(location: string): FileLoadResult
