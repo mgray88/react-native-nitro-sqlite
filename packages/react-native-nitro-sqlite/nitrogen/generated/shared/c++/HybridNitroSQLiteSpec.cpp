@@ -15,6 +15,8 @@ namespace margelo::nitro::rnnitrosqlite {
     // load custom methods/properties
     registerHybrids(this, [](Prototype& prototype) {
       prototype.registerHybridMethod("open", &HybridNitroSQLiteSpec::open);
+      prototype.registerHybridMethod("openConnection", &HybridNitroSQLiteSpec::openConnection);
+      prototype.registerHybridMethod("isConnectionOpen", &HybridNitroSQLiteSpec::isConnectionOpen);
       prototype.registerHybridMethod("close", &HybridNitroSQLiteSpec::close);
       prototype.registerHybridMethod("drop", &HybridNitroSQLiteSpec::drop);
       prototype.registerHybridMethod("attach", &HybridNitroSQLiteSpec::attach);
@@ -23,6 +25,7 @@ namespace margelo::nitro::rnnitrosqlite {
       prototype.registerHybridMethod("executeAsync", &HybridNitroSQLiteSpec::executeAsync);
       prototype.registerHybridMethod("executeRaw", &HybridNitroSQLiteSpec::executeRaw);
       prototype.registerHybridMethod("executeRawAsync", &HybridNitroSQLiteSpec::executeRawAsync);
+      prototype.registerHybridMethod("prepare", &HybridNitroSQLiteSpec::prepare);
       prototype.registerHybridMethod("executeBatch", &HybridNitroSQLiteSpec::executeBatch);
       prototype.registerHybridMethod("executeBatchAsync", &HybridNitroSQLiteSpec::executeBatchAsync);
       prototype.registerHybridMethod("loadFile", &HybridNitroSQLiteSpec::loadFile);

@@ -1,226 +1,73 @@
-<a href="https://margelo.com">
+<a href="https://sqlite.margelo.com/docs">
   <picture>
     <source media="(prefers-color-scheme: dark)" srcset="./assets/img/banner-dark.png" />
     <source media="(prefers-color-scheme: light)" srcset="./assets/img/banner-light.png" />
-    <img alt="Nitro Modules" src="./assets/img/banner-light.png" />
+    <img alt="Nitro SQLite" src="./assets/img/banner-light.png" />
   </picture>
 </a>
 
 <br />
 
-> [!IMPORTANT]
-> `react-native-quick-sqlite` has been deprecated in favor of this new [Nitro module](https://nitro.margelo.com/) implementation.
->
-> From major version `9.0.0` on, the package is `react-native-nitro-sqlite`. Bug fixes for `react-native-quick-sqlite@8.x.x` will continue for a limited time.
+Nitro SQLite is a SQLite library for React Native on iOS, macOS, visionOS, and Android, built with [Nitro Modules](https://nitro.margelo.com/). It provides synchronous and asynchronous queries, transactions, and batch operations.
 
-<div align="center">
-  <pre align="center">
-    npm i react-native-nitro-sqlite react-native-nitro-modules
-    npx pod-install</pre>
-  <a align="center" href="https://github.com/margelo">
-    <img src="https://img.shields.io/github/followers/margelo?label=Follow%20%40margelo&style=social" />
-  </a>
-  <br />
-  <a align="center" href="https://twitter.com/margelo_io">
-    <img src="https://img.shields.io/twitter/follow/margelo_io?label=Follow%20%40margelo_io&style=social" />
-  </a>
-  <a align="center" href="https://bsky.app/profile/margelo.com">
-    <img src="https://img.shields.io/twitter/follow/margelo_com?label=Follow%20%40margelo_com&style=social&logo=bluesky&url=https%3A%2F%2Fbsky.app%2Fprofile%2Fmargelo.com" style="pointer-events: 'none'" />
-  </a>
-</div>
-<br />
+**[Read the documentation](https://sqlite.margelo.com/docs)** for setup, guides, integrations, and the API reference.
 
-> [!NOTE]
-> Requires [Nitro modules](https://nitro.margelo.com/) and React Native `0.75` or later.
+If you use a coding agent, give it the [NitroSQLite skill](https://github.com/margelo/react-native-skills/blob/nitro-sqlite/skills/react-native-nitro-sqlite/SKILL.md). It links to focused guidance for connections, queries, transactions, concurrency, and migration. See the [AI agent guide](https://sqlite.margelo.com/docs/guides/ai-agents) for what to check in generated code.
 
-Nitro SQLite embeds SQLite and exposes a JSI API. Each operation is available in **sync** and **async** form; async runs off the JS thread to avoid blocking the UI.
+## Installation
 
----
+Requires React Native 0.75 or newer and `react-native-nitro-modules` 0.37.1 or newer.
 
-# Installation
-
-```bash
+```sh
 npm install react-native-nitro-sqlite react-native-nitro-modules
-npx pod-install
 ```
 
-Native API additions require rebuilding the iOS and Android application. Do not call a newly added native method from an OTA JavaScript update running against an older binary.
+Native API additions require rebuilding the iOS and Android application. Do not call a newly added native method from an OTA JavaScript update running against an older binary. Expo projects need a development build; Expo Go cannot load this native module. See [Getting Started](https://sqlite.margelo.com/docs) for details.
 
 ---
 
-# API overview
+## Example
 
-Open a database with `open()`. The returned connection is used for all operations; the database name is bound to that connection.
-
-```typescript
+```ts
 import { open } from 'react-native-nitro-sqlite'
 
-const db = open({ name: 'myDb.sqlite' })
-// Optional: location is relative to the platform database directory.
-// open({ name: 'myDb.sqlite', location: 'databases' })
-```
+const db = open({ name: 'app.sqlite' })
+db.execute('CREATE TABLE IF NOT EXISTS notes (id INTEGER PRIMARY KEY, body TEXT)')
+db.execute('INSERT INTO notes (body) VALUES (?)', ['Hello'])
 
-| Method | Sync | Async | Description |
-|--------|------|-------|-------------|
-| **Execute** | `db.execute(query, params?)` | `db.executeAsync(query, params?)` | Run a single SQL statement and return keyed rows. |
-| **Raw execute** | `db.executeRaw(query, params?)` | `db.executeRawAsync(query, params?)` | Run a single SQL statement and return positional rows. |
-| **Batch** | `db.executeBatch(commands)` | `db.executeBatchAsync(commands)` | Run multiple statements in one transaction. |
-| **Load file** | `db.loadFile(path)` | `db.loadFileAsync(path)` | Execute SQL from a file. |
-| **Transaction** | — | `db.transaction(async (tx) => { ... })` | Run multiple statements in a transaction (async only). |
-| **Lifecycle** | `db.close()`, `db.delete()` | — | Close or delete the database. |
-| **Attach** | `db.attach(dbName, alias, location?)`, `db.detach(alias)` | — | Attach/detach another database. |
-
----
-
-# Sync vs async
-
-- **Sync** (`execute`, `executeRaw`, `executeBatch`, `loadFile`): Run on the JS thread. Use for small, fast work; heavy work can block the UI.
-- **Async** (`executeAsync`, `executeRawAsync`, `executeBatchAsync`, `loadFileAsync`, `transaction`): Run off the JS thread. Prefer these for larger or many queries to keep the app responsive.
-
----
-
-# Basic usage
-
-## Execute (sync and async)
-
-Both return a result with `results` (array of rows), `rowsAffected`, and `insertId` (when relevant). Rows are plain objects keyed by column name.
-
-Query parameters accept `boolean`, `number`, `string`, `ArrayBuffer`, and `null`. Always bind user-supplied values as parameters rather than building SQL strings.
-
-```typescript
-// Sync — blocks JS thread
-const { results, rowsAffected } = db.execute(
-  'UPDATE sometable SET somecolumn = ? WHERE somekey = ?',
-  [0, 1]
+const { rows } = db.execute<{ id: number; body: string }>(
+  'SELECT id, body FROM notes',
 )
+console.log(rows._array)
 
-// Async — off JS thread
-const { results } = await db.executeAsync('SELECT * FROM sometable')
-results.forEach((row) => console.log(row))
-
-// Type the row shape when it is known.
-const users = db.execute<{ id: number; name: string }>(
-  'SELECT id, name FROM users',
-).rows._array
-```
-
-### Positional results
-
-Use `executeRaw` when column positions matter, such as when a query has duplicate labels. It returns `SQLiteValue[][]` in SQLite row and column order, so no value is lost:
-
-```typescript
-const rows = db.executeRaw('SELECT users.id, posts.id FROM users JOIN posts ON posts.user_id = users.id')
-// [[userId, postId], ...]
-
-const asyncRows = await db.executeRawAsync('SELECT 1 AS id, 2 AS id')
-// [[1, 2]]
-```
-
-`execute` and `executeAsync` remain keyed by column label. Their `results` and `metadata` objects cannot represent duplicate labels; use the raw methods for those queries. Raw methods return `[]` for statements with no result rows and accept the same parameters and value types as `execute`.
-
-## Transactions (async only)
-
-Use `db.transaction()` for multiple statements in a single transaction. The callback receives a `tx` object with `execute`, `executeAsync`, `commit`, and `rollback`. If the callback throws, the transaction is rolled back. Otherwise it is committed when the callback resolves (or you can call `tx.commit()` / `tx.rollback()` explicitly).
-
-```typescript
-await db.transaction(async (tx) => {
-  tx.execute('UPDATE sometable SET somecolumn = ? WHERE somekey = ?', [0, 1])
-  await tx.executeAsync('INSERT INTO sometable (id, name) VALUES (?, ?)', [2, 'foo'])
-  // Uncaught error → rollback
-  // Success → commit (or call tx.commit() / tx.rollback() yourself)
-})
-```
-
-## Batch (sync and async)
-
-Run many statements in one transaction. Each command has `query` and optional `params`. For one query with many parameter sets, use a single `query` and `params` as an array of arrays.
-
-```typescript
-const commands = [
-  { query: 'CREATE TABLE IF NOT EXISTS TEST (id INTEGER, age INTEGER)' },
-  { query: 'INSERT INTO TEST (id, age) VALUES (?, ?)', params: [1, 10] },
-  { query: 'INSERT INTO TEST (id, age) VALUES (?, ?)', params: [2, 20] },
-  {
-    query: 'INSERT INTO TEST (id, age) VALUES (?, ?)',
-    params: [
-      [3, 30],
-      [4, 40],
-    ],
-  },
-]
-
-const { rowsAffected } = db.executeBatch(commands)
-// Or: await db.executeBatchAsync(commands)
-```
-
-# Column metadata
-
-When you need column types or names for the result set, use the `metadata` field on the query result. Keys are column names; values include `name`, `type` (e.g. from `ColumnType`), and `index`.
-
-```typescript
-const { results, metadata } = db.execute('SELECT id, name FROM users LIMIT 1')
-if (metadata) {
-  for (const [columnName, meta] of Object.entries(metadata)) {
-    console.log(columnName, meta.type, meta.index)
-  }
-}
-```
-
----
-
-# Attach / detach
-
-Attach another database file under an alias; useful for JOINs across files or separate configs. Detach when no longer needed. Closing the main connection detaches all.
-
-```typescript
-db.attach('otherDb.sqlite', 'other', '/path/to/dir')
-const { results } = db.execute(
-  'SELECT * FROM main.users a INNER JOIN other.stats b ON a.id = b.user_id'
-)
-db.detach('other')
-```
-
----
-
-# Loading SQL files
-
-Execute all statements in a file (e.g. a dump). The loader executes one non-empty SQL command per line inside an exclusive transaction, so multi-line statements are not supported. Sync and async are available; async is better for large files.
-
-```typescript
-const { rowsAffected, commands } = db.loadFile('/absolute/path/to/file.sql')
-// Or: await db.loadFileAsync('/absolute/path/to/file.sql')
-```
-
----
-
-# Loading existing databases
-
-Databases are created under the app documents directory (iOS) or files directory (Android). `location` is a directory path relative to that root, not an absolute file path. For example, `open({ name: 'myDb.sqlite', location: 'databases' })` opens `myDb.sqlite` under the `databases` directory. To use a database from another app-accessible location, copy or move it into this directory first. On iOS, files outside the app sandbox are inaccessible.
-
-Close a connection before deleting its database. A connection must not be used after `close()` or `delete()`.
-
-```ts
 db.close()
-db.delete()
 ```
 
----
+## Positional query results
 
-# Errors
-
-The JavaScript helpers—including `open`, `execute`, `executeAsync`, `executeRaw`, `executeRawAsync`, batch methods, transactions, and `close`—normalize database failures to `NitroSQLiteError`. Catch this class when you need to distinguish database failures from errors thrown by your application.
+Use `db.executeRaw(query, params?)` or `db.executeRawAsync(query, params?)` when you need SQLite's column order or queries with duplicate column labels. Both return `SQLiteValue[][]`; each inner array is one row, in SQL result-column order. Unlike keyed `execute()` results, positional rows retain every column when labels repeat.
 
 ```ts
-import { NitroSQLiteError } from 'react-native-nitro-sqlite'
-
-try {
-  db.execute('SELECT * FROM missing_table')
-} catch (error) {
-  if (error instanceof NitroSQLiteError) {
-    console.error(error.message)
-  }
-}
+const rows = db.executeRaw('SELECT 1 AS id, 2 AS id')
+// [[1, 2]]
+const laterRows = await db.executeRawAsync('SELECT id, title FROM notes WHERE id = ?', [1])
 ```
+
+Raw methods accept the same bound parameters as `execute`. They are methods on a database connection and on the database-name-based `NitroSQLite` facade, but are not transaction-object methods. Do not await `db.executeRawAsync()` inside `db.transaction()` on the same connection: its queued work cannot run until the transaction callback finishes. Use the callback's `tx.executeAsync()` for transaction-scoped queries; its result remains keyed by column label.
+
+After adding a native API, rebuild the iOS or Android app before calling it. An OTA JavaScript update cannot add a method to an older native binary. Expo Go is unsupported; use an Expo development build.
+
+If you implement `NitroSQLiteConnection` structurally, update the implementation or mock to provide `executeRaw` and `executeRawAsync` as well.
+
+## Migrating from Quick SQLite
+
+`react-native-quick-sqlite` 8.x was succeeded by `react-native-nitro-sqlite` 9.x. Follow the [migration guide](https://sqlite.margelo.com/docs/guides/migrate-from-quick-sqlite) before updating an app with existing database files.
+
+## Community and contributing
+
+Join the [Margelo Community Discord](https://discord.gg/6CSHz2qAvA). Contributions are welcome through [issues](https://github.com/margelo/react-native-nitro-sqlite/issues) and pull requests.
+
+## License
 
 ---
 

@@ -1,8 +1,8 @@
-import { NitroSQLite } from 'react-native-nitro-sqlite'
-import type { SQLiteValue } from 'react-native-nitro-sqlite'
 import { describe, it } from '@tests/TestApi'
 import { expect, isNitroSQLiteError } from '@tests/unit/common'
 import { TEST_DB_NAME, testDb } from '@tests/db'
+import { NitroSQLite, open } from 'react-native-nitro-sqlite'
+import type { SQLiteValue } from 'react-native-nitro-sqlite'
 
 export default function registerExecuteRawUnitTests() {
   describe('executeRaw', () => {
@@ -45,6 +45,33 @@ export default function registerExecuteRawUnitTests() {
       expect(await testDb.executeRawAsync(query, [true, 'text', null])).toEqual(
         [expected],
       )
+    })
+
+    it('binds undefined as NULL and preserves embedded NUL text', async () => {
+      const query = 'SELECT ? AS missing, ? AS text'
+      const params = [undefined, 'before\u0000after']
+      const expected = [[null, 'before\u0000after']]
+
+      expect(testDb.executeRaw(query, params)).toEqual(expected)
+      expect(await testDb.executeRawAsync(query, params)).toEqual(expected)
+    })
+
+    it('works on an independent connection to the same database', async () => {
+      const independentDb = open({
+        name: TEST_DB_NAME,
+        connection: 'independent',
+      })
+
+      try {
+        expect(independentDb.executeRaw('SELECT 1 AS id, 2 AS id')).toEqual([
+          [1, 2],
+        ])
+        expect(
+          await independentDb.executeRawAsync('SELECT 3 AS id, 4 AS id'),
+        ).toEqual([[3, 4]])
+      } finally {
+        independentDb.close()
+      }
     })
 
     it('matches execute value conversions, including blobs', async () => {
